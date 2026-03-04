@@ -1,13 +1,33 @@
-import Stripe from "stripe";
+import Stripe from "https://esm.sh/stripe@13.0.0?target=deno";
 
-// The secret key must be set in the environment (see .env.local)
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
-  apiVersion: "2022-11-15",
+const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY") || "", {
+  apiVersion: "2023-10-16",
+  httpClient: Stripe.createFetchHttpClient(),
 });
 
-export async function POST(request: Request) {
+Deno.serve(async (req) => {
+  // Handle CORS
+  if (req.method === "OPTIONS") {
+    return new Response("ok", {
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization",
+      },
+    });
+  }
+
   try {
-    const { price, quantity = 1 } = await request.json();
+    const { price, quantity = 1 } = await req.json();
+
+    if (!price || price <= 0) {
+      return new Response(JSON.stringify({ error: "Invalid price" }), {
+        status: 400,
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+
+    const appUrl = Deno.env.get("VITE_APP_URL") || "http://localhost:5173";
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ["card"],
@@ -16,8 +36,8 @@ export async function POST(request: Request) {
           price_data: {
             currency: "usd",
             product_data: {
-              name: "Mortgage consultation",
-              description: "Pay for mortgage advisor service",
+              name: "Mortgage Consultation",
+              description: "Professional mortgage advisory service",
             },
             unit_amount: price,
           },
@@ -25,18 +45,27 @@ export async function POST(request: Request) {
         },
       ],
       mode: "payment",
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/success?session_id={CHECKOUT_SESSION_ID}",
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"}/cancel",
+      success_url: `${appUrl}/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${appUrl}/cancel`,
     });
 
     return new Response(JSON.stringify({ url: session.url }), {
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "Access-Control-Allow-Origin": "*",
+      },
     });
   } catch (err) {
-    console.error(err);
-    return new Response(JSON.stringify({ error: (err as Error).message }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" },
-    });
+    console.error("Stripe error:", err);
+    return new Response(
+      JSON.stringify({ error: (err as Error).message || "Checkout failed" }),
+      {
+        status: 500,
+        headers: {
+          "Content-Type": "application/json",
+          "Access-Control-Allow-Origin": "*",
+        },
+      }
+    );
   }
-}
+});
