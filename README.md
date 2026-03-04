@@ -1,5 +1,8 @@
 # Welcome to your Lovable project
 
+This repository contains the **Mortgage Advisory App**, a React-based web application designed to help users explore mortgage options and speak with an advisory chatbot. The app is built with modern frontend technologies and integrates with Supabase for backend services.
+
+
 ## Project info
 
 **URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
@@ -51,6 +54,9 @@ npm run dev
 - Edit files directly within the Codespace and commit and push your changes once you're done.
 
 ## What technologies are used for this project?
+
+*Updated README with project details.*
+
 
 This project is built with:
 
