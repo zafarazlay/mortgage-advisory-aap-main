@@ -1,0 +1,4 @@
+project_id = "rohbdpvnokcbicbtguri"
+
+[functions.mortgage-chat]
+verify_jwt = false
