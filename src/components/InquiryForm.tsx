@@ -1,10 +1,13 @@
 import { useState } from "react";
 import { CheckCircle } from "lucide-react";
 import { trackEvent, EVENTS } from "@/lib/analytics";
+import { useToast } from "@/hooks/use-toast";
 
 const InquiryForm = () => {
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, boolean>>({});
+  const { toast } = useToast();
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -19,7 +22,7 @@ const InquiryForm = () => {
     setErrors((e) => ({ ...e, [key]: false }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errs: Record<string, boolean> = {};
     if (!form.name.trim()) errs.name = true;
@@ -31,8 +34,35 @@ const InquiryForm = () => {
       return;
     }
 
-    trackEvent(EVENTS.FORM_SUBMITTED, { purpose: form.purpose });
-    setSubmitted(true);
+    setLoading(true);
+    try {
+      const response = await fetch("/supabase/functions/v1/handle-form-submission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to submit form");
+      }
+
+      trackEvent(EVENTS.FORM_SUBMITTED, { purpose: form.purpose });
+      setSubmitted(true);
+      
+      toast({
+        title: "Success!",
+        description: "Your application has been received. We'll contact you soon.",
+      });
+    } catch (err) {
+      console.error("Form submission error:", err);
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to submit form",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const inputClass = (key: string) =>
@@ -101,9 +131,10 @@ const InquiryForm = () => {
           </div>
           <button
             type="submit"
-            className="w-full rounded-lg bg-gold px-7 py-3.5 text-sm font-semibold text-accent-foreground shadow-[var(--shadow-cta)] hover:bg-gold-dark transition-colors"
+            disabled={loading}
+            className="w-full rounded-lg bg-gold px-7 py-3.5 text-sm font-semibold text-accent-foreground shadow-[var(--shadow-cta)] hover:bg-gold-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Submit Application
+            {loading ? "Submitting..." : "Submit Application"}
           </button>
         </form>
       </div>
@@ -112,3 +143,4 @@ const InquiryForm = () => {
 };
 
 export default InquiryForm;
+
